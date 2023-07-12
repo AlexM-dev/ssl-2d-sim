@@ -129,7 +129,7 @@ class Robot:
 
         if ball.z < self.height:
             if ball.kicked and self.rId != ball.kicked_id:
-                if auxiliary.format_angle(self.angle - angle) < 10 / (180 / math.pi):
+                if abs(auxiliary.format_angle(self.angle - angle)) < 10 / (180 / math.pi):
                     ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.15
                 else:
                     ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.6
@@ -195,8 +195,8 @@ class Robot:
 
         if abs(angle_to_ball) < 10 / (180 / math.pi) and distance_to_ball < (
                 self.size + ball.radius) * 1.15 and ball.z == 0:
-            ball.kick_up(self.angle, self.up_kick_angle, self.kick_power, self.rId, self.speedX, self.speedY)
-            # ball.kick(self.angle, self.kick_power, self.rId, self.speedX, self.speedY)
+            # ball.kick_up(self.angle, self.up_kick_angle, self.kick_power, self.rId, self.speedX, self.speedY)
+            ball.kick(self.angle, self.kick_power, self.rId, self.speedX, self.speedY)
 
 
 class Ball:
