@@ -9,9 +9,9 @@ class Robot:
         self.x = x
         self.y = y
         self.size = 180 * const.SCALE
-        self.height = 800 * const.SCALE
-        self.maxSpeed = 6
-        self.maxSpeedR = 0.15
+        self.height = 150 * const.SCALE
+        self.maxSpeed = 6 * 1000 * const.SCALE
+        self.maxSpeedR = 10
         self.direction_indicator_length = self.size * 1.3
         self.angle = angle
         if team == 'y':
@@ -24,12 +24,12 @@ class Robot:
         self.speedY = 0
         self.speedR = 0
 
-        self.kick_power = 60
+        self.kick_power = 25000 * const.SCALE
         self.mass = 5.0  # Robot mass
-        self.friction = 0.6  # Friction coefficient
+        self.friction = 15.1  # Friction coefficient
         self.up_kick_angle = auxiliary.format_angle(45 / (180 / math.pi))
 
-    def update(self, robots, ball):
+    def update(self, robots, ball, dt):
         self.handle_collisions(robots, ball)
 
         if self.x <= const.WALL_THICKNESS:
@@ -51,22 +51,21 @@ class Robot:
             self.speedX = self.maxSpeed * math.cos(tempAng)
             self.speedY = self.maxSpeed * math.sin(tempAng)
 
-        self.x += self.speedX
-        self.y += self.speedY
+        self.x += self.speedX * dt
+        self.y += self.speedY * dt
 
         if self.speedR > self.maxSpeedR:
             self.speedR = self.maxSpeedR
         if self.speedR < -self.maxSpeedR:
             self.speedR = -self.maxSpeedR
-        self.angle += self.speedR
+        self.angle += self.speedR * dt
 
-        self.apply_friction()
+        self.apply_friction(dt)
 
-    def apply_friction(self):
-        # Apply friction to slow down the robot's movement
-        self.speedX *= (1 - self.friction)
-        self.speedY *= (1 - self.friction)
-        self.speedR *= (1 - self.friction)
+    def apply_friction(self, dt):
+        self.speedX *= math.exp(-self.friction * dt)
+        self.speedY *= math.exp(-self.friction * dt)
+        self.speedR *= math.exp(-self.friction * dt)
 
     def handle_collisions(self, robots, ball):
         for robot in robots:
@@ -105,9 +104,9 @@ class Robot:
         if ball.z < self.height:
             if ball.kicked and self.rId != ball.kicked_id:
                 if abs(auxiliary.format_angle(self.angle - angle)) < 10 / (180 / math.pi):
-                    ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.15
+                    ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.5
                 else:
-                    ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.6
+                    ball_speed = ((ball.velocity_x ** 2 + ball.velocity_y ** 2) ** 0.5) * 0.9
                 ball.velocity_x = ball_speed * math.cos(angle)
                 ball.velocity_y = ball_speed * math.sin(angle)
             else:
@@ -123,8 +122,8 @@ class Robot:
         # Calculate the distance to the ball
         distance_to_point = math.dist((self.x, self.y), (point.x, point.y))
 
-        self.speedX = distance_to_point * math.cos(angle_to_point)
-        self.speedY = distance_to_point * math.sin(angle_to_point)
+        self.speedX = distance_to_point * math.cos(angle_to_point) * 10
+        self.speedY = distance_to_point * math.sin(angle_to_point) * 10
 
     def rotate_to_point(self, point):
         vx = self.x - point.x
@@ -134,7 +133,7 @@ class Robot:
         dif = -math.atan2(auxiliary.scal_mult(auxiliary.Point(vx, vy), auxiliary.Point(ux, uy)),
                           auxiliary.vect_mult(auxiliary.Point(vx, vy), auxiliary.Point(ux, uy)))
         if abs(dif) > 0.1:
-            self.speedR = dif * 10
+            self.speedR = dif * 7
         else:
             self.speedR = 0
 
@@ -162,3 +161,21 @@ class Robot:
                 self.size + ball.radius) * 1.15 and ball.z == 0:
             # ball.kick_up(self.angle, self.up_kick_angle, self.kick_power, self.rId, self.speedX, self.speedY)
             ball.kick(self.angle, self.kick_power, self.rId, self.speedX, self.speedY)
+
+    def drive_to_ball_and_kick_to_point(self, ball, point, robots=None):
+        # Calculate the angle to the ball
+        self.rotate_to_point(point)
+        target_angle = math.atan2(ball.y - point.y, ball.x - point.x)
+        target_x = ball.x + (ball.radius + self.size) * 5 * math.cos(target_angle)
+        target_y = ball.y + (ball.radius + self.size) * 5 * math.sin(target_angle)
+
+        distance_to_ball = math.hypot(ball.x - self.x, ball.y - self.y)
+        if distance_to_ball > (self.size + ball.radius):  # Adjust the threshold as needed
+            # Move towards the ball
+            print(auxiliary.format_angle(math.atan2(ball.y - self.y, ball.x - self.x) - self.angle))
+            if abs(auxiliary.format_angle(math.atan2(ball.y - self.y, ball.x - self.x) - self.angle)) < 20 / (180 / math.pi):
+                self.drive_to_ball(ball)
+            else:
+                self.go_to_point(auxiliary.Point(target_x, target_y))
+        else:
+            self.kick_ball(ball)
